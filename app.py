@@ -1,158 +1,131 @@
-# ======================================================
-# 🧠 ESG Sentiment & Tone Visualization Dashboard
-# ======================================================
-
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.express as px
-import plotly.io as pio
 import seaborn as sns
 import matplotlib.pyplot as plt
+import plotly.io as pio
 
-# Plotly template
+# Fix plotly theme
 pio.templates.default = "plotly_white"
 
-# ----------------------------------------------
-# 🎛️ Streamlit Sidebar
-# ----------------------------------------------
-st.sidebar.title("📊 Dashboard Settings")
-uploaded_file = st.sidebar.file_uploader("Upload your CSV file", type=["csv"])
+st.title("🔍 Aspect & Ontology Visualization Dashboard")
+st.write("Analyze aspect categories, ontology URIs, sentiment and tone at sentence level.")
 
-st.title("🧠 ESG Sentiment & Tone Visualization Dashboard")
-st.write("Upload your sentiment/tone CSV file to begin.")
+# ------------------------------------------------
+# 📥 File Upload (shared across pages)
+# ------------------------------------------------
+uploaded_file = st.sidebar.file_uploader("Upload ESG CSV", type=["csv"], key="aspect_file")
 
-# ----------------------------------------------
-# 🚨 Exit if no file uploaded
-# ----------------------------------------------
 if uploaded_file is None:
+    st.info("Upload a CSV file to begin.")
     st.stop()
 
-# ----------------------------------------------
-# 📥 Load Data
-# ----------------------------------------------
 df = pd.read_csv(uploaded_file)
-
-# Normalize column names
 df.columns = df.columns.str.strip().str.lower()
 
-# Required columns
-required_cols = {"filename", "sentiment", "tone"}
+required = {"aspect", "aspect_category", "ontology_uri", "sentiment", "tone"}
 
-if not required_cols.issubset(df.columns):
-    st.error(f"❌ The dataset must contain these columns: {required_cols}")
+if not required.issubset(df.columns):
+    st.error(f"Dataset must contain: {required}")
     st.stop()
 
-st.success("✅ File loaded successfully!")
+st.success("File loaded successfully!")
 st.dataframe(df.head())
 
-# ----------------------------------------------
-# 📊 Aggregation
-# ----------------------------------------------
-
-# Sentiment summary per document
-sentiment_summary = (
-    df.groupby("filename")["sentiment"]
-    .value_counts()
-    .unstack(fill_value=0)
-    .reset_index()
-)
-
-# Tone summary per document
-tone_summary = (
-    df.groupby("filename")["tone"]
-    .value_counts()
-    .unstack(fill_value=0)
-    .reset_index()
-)
-
-merged = pd.merge(sentiment_summary, tone_summary, on="filename", how="outer").fillna(0)
-
-st.subheader("📄 Aggregated Results per Document")
-st.dataframe(merged)
-
-# Detect sentiment & tone columns
-sentiment_cols = [c for c in merged.columns if c.lower() in ["positive", "neutral", "negative", "none"]]
-tone_cols = [c for c in merged.columns if c.lower() in ["action", "commitment", "outcome"]]
-
-# ----------------------------------------------
-# 1️⃣ Sentiment Distribution per Document
-# ----------------------------------------------
-st.subheader("1️⃣ Sentiment Distribution per Document")
+# ==============================================
+# 🔹 1 — Aspect Category Frequency
+# ==============================================
+st.subheader("1️⃣ Aspect Category Distribution")
 
 fig1 = px.bar(
-    merged,
-    x="filename",
-    y=sentiment_cols,
-    barmode="group",
-    title="Sentiment Distribution per Document",
+    df["aspect_category"].value_counts().reset_index(),
+    x="index",
+    y="aspect_category",
+    labels={"index": "Aspect Category", "aspect_category": "Count"},
+    title="Aspect Category Frequency",
 )
 st.plotly_chart(fig1, use_container_width=True)
 
-# ----------------------------------------------
-# 2️⃣ Tone Distribution per Document
-# ----------------------------------------------
-st.subheader("2️⃣ Tone Distribution per Document")
+# ==============================================
+# 🔹 2 — Ontology URI Frequency
+# ==============================================
+st.subheader("2️⃣ Ontology URI Distribution")
 
 fig2 = px.bar(
-    merged,
-    x="filename",
-    y=tone_cols,
-    barmode="group",
-    title="Tone Distribution per Document",
+    df["ontology_uri"].value_counts().reset_index(),
+    x="index",
+    y="ontology_uri",
+    labels={"index": "Ontology URI", "ontology_uri": "Count"},
+    title="Ontology URI Frequency",
 )
 st.plotly_chart(fig2, use_container_width=True)
 
-# ----------------------------------------------
-# 3️⃣ Overall Sentiment Pie Chart
-# ----------------------------------------------
-st.subheader("3️⃣ Overall Sentiment Composition")
+# ==============================================
+# 🔹 3 — Sentiment by Aspect Category
+# ==============================================
+st.subheader("3️⃣ Sentiment by Aspect Category")
 
-sentiment_total = merged[sentiment_cols].sum().reset_index()
-sentiment_total.columns = ["sentiment", "count"]
+sent_aspect = (
+    df.groupby(["aspect_category", "sentiment"])
+    .size()
+    .reset_index(name="count")
+)
 
-fig3 = px.pie(
-    sentiment_total,
-    names="sentiment",
-    values="count",
-    title="Overall Sentiment Composition",
+fig3 = px.bar(
+    sent_aspect,
+    x="aspect_category",
+    y="count",
+    color="sentiment",
+    barmode="group",
+    title="Sentiment Distribution by Aspect Category",
 )
 st.plotly_chart(fig3, use_container_width=True)
 
-# ----------------------------------------------
-# 4️⃣ Overall Tone Pie Chart
-# ----------------------------------------------
-st.subheader("4️⃣ Overall Tone Composition")
+# ==============================================
+# 🔹 4 — Tone by Aspect Category
+# ==============================================
+st.subheader("4️⃣ Tone by Aspect Category")
 
-tone_total = merged[tone_cols].sum().reset_index()
-tone_total.columns = ["tone", "count"]
+tone_aspect = (
+    df.groupby(["aspect_category", "tone"])
+    .size()
+    .reset_index(name="count")
+)
 
-fig4 = px.pie(
-    tone_total,
-    names="tone",
-    values="count",
-    title="Overall Tone Composition",
+fig4 = px.bar(
+    tone_aspect,
+    x="aspect_category",
+    y="count",
+    color="tone",
+    barmode="group",
+    title="Tone Distribution by Aspect Category",
 )
 st.plotly_chart(fig4, use_container_width=True)
 
-# ----------------------------------------------
-# 5️⃣ Statistical Summary Table
-# ----------------------------------------------
-st.subheader("5️⃣ Statistical Summary (Mean ± Std)")
+# ==============================================
+# 🔹 5 — Heatmap: Aspect Category × Sentiment/Tone
+# ==============================================
+st.subheader("5️⃣ Aspect Category vs Sentiment/Tone Heatmap")
 
-stats_df = merged[sentiment_cols + tone_cols].describe().T[["mean", "std"]]
-stats_df["mean"] = stats_df["mean"].round(2)
-stats_df["std"] = stats_df["std"].round(2)
+# Pivot for heatmap (sentiment)
+pivot_sent = pd.pivot_table(
+    df, values="sentence", index="aspect_category", columns="sentiment",
+    aggfunc="count", fill_value=0
+)
 
-st.dataframe(stats_df)
+# Pivot for heatmap (tone)
+pivot_tone = pd.pivot_table(
+    df, values="sentence", index="aspect_category", columns="tone",
+    aggfunc="count", fill_value=0
+)
 
-# ----------------------------------------------
-# 6️⃣ Correlation Heatmap (Sentiment vs Tone)
-# ----------------------------------------------
-st.subheader("6️⃣ Sentiment–Tone Correlation Heatmap")
+# Plot side-by-side
+fig, ax = plt.subplots(1, 2, figsize=(14, 5))
 
-corr = merged[sentiment_cols + tone_cols].corr()
+sns.heatmap(pivot_sent, annot=True, cmap="Blues", ax=ax[0])
+ax[0].set_title("Sentiment Heatmap")
 
-fig, ax = plt.subplots(figsize=(8, 6))
-sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
+sns.heatmap(pivot_tone, annot=True, cmap="Greens", ax=ax[1])
+ax[1].set_title("Tone Heatmap")
+
 st.pyplot(fig)
