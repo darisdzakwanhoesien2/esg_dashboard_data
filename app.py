@@ -37,11 +37,14 @@ st.dataframe(df.head())
 # ==============================================
 st.subheader("1️⃣ Aspect Category Distribution")
 
+fig1_data = df["aspect_category"].value_counts().reset_index()
+fig1_data.columns = ["aspect_category", "count"]  # Rename columns explicitly
+
 fig1 = px.bar(
-    df["aspect_category"].value_counts().reset_index(),
-    x="index",
-    y="aspect_category",
-    labels={"index": "Aspect Category", "aspect_category": "Count"},
+    fig1_data,
+    x="aspect_category",
+    y="count",
+    labels={"aspect_category": "Aspect Category", "count": "Count"},
     title="Aspect Category Frequency",
 )
 st.plotly_chart(fig1, use_container_width=True)
@@ -129,3 +132,5 @@ sns.heatmap(pivot_tone, annot=True, cmap="Greens", ax=ax[1])
 ax[1].set_title("Tone Heatmap")
 
 st.pyplot(fig)
+st.write(df["aspect_category"].head())
+df["aspect_category"].value_counts().reset_index()
