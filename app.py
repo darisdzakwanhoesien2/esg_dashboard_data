@@ -156,4 +156,3 @@ corr = merged[sentiment_cols + tone_cols].corr()
 fig, ax = plt.subplots(figsize=(8, 6))
 sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
 st.pyplot(fig)
-s
